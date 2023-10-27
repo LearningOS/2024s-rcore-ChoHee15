@@ -14,6 +14,12 @@ pub struct TaskControlBlock {
     /// Maintain the execution status of the current process
     pub task_status: TaskStatus,
 
+    //CH3 ADDED
+    /// ms
+    pub start_time: usize,
+    /// count
+    pub syscall_times: [u32; crate::config::MAX_SYSCALL_NUM], //TODO: too much space
+
     /// Application address space
     pub memory_set: MemorySet,
 
@@ -63,6 +69,10 @@ impl TaskControlBlock {
             base_size: user_sp,
             heap_bottom: user_sp,
             program_brk: user_sp,
+            //CH3 ADDED: task_info
+            start_time: 0,
+            syscall_times: [0; crate::config::MAX_SYSCALL_NUM],
+            //CH3 ADDED: task_info
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.get_trap_cx();
