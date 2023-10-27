@@ -63,6 +63,8 @@ pub fn trap_handler() -> ! {
     // trace!("into {:?}", scause.cause());
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
+            //CH3 ADDED: task_info
+            crate::task::update_info_syscall(cx.x[17]);
             // jump to next instruction anyway
             cx.sepc += 4;
             // get system call return value

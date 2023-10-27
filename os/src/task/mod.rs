@@ -83,6 +83,8 @@ impl TaskManager {
         drop(inner);
         let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
+        //CH3 ADDED: task_info
+        update_info_starttime();
         unsafe {
             __switch(&mut _unused as *mut _, next_task_cx_ptr);
         }
@@ -145,6 +147,8 @@ impl TaskManager {
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
+            //CH3 ADDED: task_info
+            update_info_starttime();
             unsafe {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
             }
@@ -188,6 +192,49 @@ pub fn exit_current_and_run_next() {
     run_next_task();
 }
 
+//CH3 ADDED: task_info
+/// Update syscall count.
+pub fn update_info_syscall(id: usize){
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+    // inner.tasks[current].task_info.status = TaskStatus::Running;
+    inner.tasks[current].syscall_times[id] += 1;
+    // inner.tasks[current].task_info.syscall_times[410] += 1;
+    // inner.tasks[current].task_info.time = get_time_ms();
+    drop(inner);
+    info!("[kernel] task[{}] calling syscall[{}]!", current, id);
+}
+
+/// Set start time.
+pub fn update_info_starttime(){
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+    if inner.tasks[current].start_time == 0 {
+        inner.tasks[current].start_time = crate::timer::get_time_us()/1000;
+        // println!("[kernel] task[{}] first run and set timestamp of {}!", current, inner.tasks[current].start_time);
+    }
+    drop(inner);
+}
+
+/// get syscall count.
+pub fn get_info_syscall() -> [u32; crate::config::MAX_SYSCALL_NUM]{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+    let res = inner.tasks[current].syscall_times;
+    drop(inner);
+    res
+}
+
+/// get syscall count.
+    pub fn get_info_starttime() -> usize{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+    let res = inner.tasks[current].start_time;
+    drop(inner);
+    res
+}
+//CH3 ADDED: task_info
+
 /// Get the current 'Running' task's token.
 pub fn current_user_token() -> usize {
     TASK_MANAGER.get_current_token()
@@ -202,3 +249,37 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
 }
+
+//CH4 ADDED
+/// _start should be aligned, success return 0 else -1
+pub fn current_add_map(_start: usize, _end: usize, _perm: crate::mm::MapPermission) -> isize{
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+
+    let res = & mut inner.tasks[current].memory_set;
+
+    if (*res).check_overlap(_start.into(), _end.into()){
+        println!("[current_add_map : [{:#x}, {:#x}) ] has overlap!", _start, _end);
+        return -1;
+    }
+
+    (*res).insert_framed_area(_start.into(), _end.into(), _perm);
+    drop(inner);
+    0
+}
+
+/// remove WHOLE AreaSegment which contain the range. _start should be aligned, success return 0 else -1
+pub fn current_remove_map(_start: usize, _end: usize) -> isize{
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current = inner.current_task;
+
+    let res = & mut inner.tasks[current].memory_set;
+
+    if (*res).remove_map(_start.into(), _end.into()) {
+        return 0;
+    }
+    drop(inner);
+    -1
+}
+
+//CH4 ADDED
