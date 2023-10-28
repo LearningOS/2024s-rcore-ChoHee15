@@ -79,7 +79,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     inner.exit_code = exit_code;
     // do not move to its parent but under initproc
 
-    // ++++++ access initproc TCB exclusively
+    //  access initproc TCB exclusively
     {
         let mut initproc_inner = INITPROC.inner_exclusive_access();
         for child in inner.children.iter() {
@@ -87,7 +87,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
             initproc_inner.children.push(child.clone());
         }
     }
-    // ++++++ release parent PCB
+    //  release parent PCB
 
     inner.children.clear();
     // deallocate user space

@@ -44,6 +44,14 @@ impl Processor {
     pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
         self.current.as_ref().map(Arc::clone)
     }
+
+    //CH4 ADDED
+    //TODO: 太丑陋了哥
+    ///return current task
+    pub fn return_current(&mut self, task: Arc<TaskControlBlock>) {
+        self.current = Some(task);
+    }
+    //CH4 ADDED
 }
 
 lazy_static! {
@@ -67,6 +75,8 @@ pub fn run_tasks() {
             processor.current = Some(task);
             // release processor manually
             drop(processor);
+            //CH3 ADDED CH4 MODIFIED
+            crate::task::update_info_starttime();
             unsafe {
                 __switch(idle_task_cx_ptr, next_task_cx_ptr);
             }
