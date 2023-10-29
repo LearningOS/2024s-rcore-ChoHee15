@@ -9,6 +9,10 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use core::cell::RefMut;
 
+//CH5 ADDED: stride
+pub const BIG_STRIDE:usize = 1024;
+//CH5 ADDED: stride
+
 /// Task control block structure
 ///
 /// Directly save the contents that will not change during running
@@ -22,6 +26,14 @@ pub struct TaskControlBlock {
 
     /// Mutable
     inner: UPSafeCell<TaskControlBlockInner>,
+
+    //CH4 ADDED: stride
+    /// stride
+    pub stride: UPSafeCell<usize>,
+
+    /// pass
+    pub pass: UPSafeCell<usize>,
+    //CH4 ADDED: stride
 }
 
 impl TaskControlBlock {
@@ -34,6 +46,17 @@ impl TaskControlBlock {
         let inner = self.inner_exclusive_access();
         inner.memory_set.token()
     }
+
+    //CH5 ADDED: stride
+    ///
+    pub fn update_stride(&self) {
+        let mut stride = self.stride.exclusive_access();
+        let pass = self.pass.exclusive_access();
+        *stride += *pass;
+        drop(stride);
+        drop(pass);
+    }
+    //CH5 ADDED: stride
 }
 
 pub struct TaskControlBlockInner {
@@ -120,6 +143,10 @@ impl TaskControlBlock {
                     program_brk: user_sp,
                 })
             },
+            //CH5 ADDED: stride
+            stride: unsafe{UPSafeCell::new(0)},
+            pass: unsafe{UPSafeCell::new(16)},
+            //CH5 ADDED: stride
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
@@ -193,6 +220,10 @@ impl TaskControlBlock {
                     program_brk: parent_inner.program_brk,
                 })
             },
+            //CH5 ADDED: stride
+            stride: unsafe{UPSafeCell::new(*self.stride.exclusive_access())},
+            pass: unsafe{UPSafeCell::new(*self.pass.exclusive_access())},
+            //CH5 ADDED: stride
         });
         // add child
         parent_inner.children.push(task_control_block.clone());
