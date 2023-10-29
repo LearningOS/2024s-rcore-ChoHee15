@@ -115,3 +115,138 @@ lazy_static! {
 pub fn add_initproc() {
     add_task(INITPROC.clone());
 }
+
+//CH3 ADDED: task_info
+/// Update syscall count.
+pub fn update_info_syscall(id: usize){
+    let task = take_current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+
+    inner.syscall_times[id] += 1;
+
+    drop(inner);
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+    // info!("[kernel] task[{}] calling syscall[{}]!", current, id);
+}
+    
+/// Set start time.
+pub fn update_info_starttime(){
+    let task = take_current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    
+    if inner.start_time == 0 {
+        inner.start_time = crate::timer::get_time_us()/1000;
+        // println!("[kernel] task[{}] first run and set timestamp of {}!", current, inner.tasks[current].start_time);
+    }
+
+    drop(inner);
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+}
+    
+/// get syscall count.
+pub fn get_info_syscall() -> [u32; crate::config::MAX_SYSCALL_NUM]{
+    //TODO: 是否应该使用应用减少拷贝开销?
+    let task = take_current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+
+    let res = inner.syscall_times;
+
+    drop(inner);
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+    res
+}
+    
+/// get syscall count.
+pub fn get_info_starttime() -> usize{
+    let task = take_current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+
+    let res = inner.start_time;
+
+    drop(inner);
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+    res
+}
+//CH3 ADDED: task_info
+    
+//CH4 ADDED
+/// _start should be aligned, success return 0 else -1
+pub fn current_add_map(_start: usize, _end: usize, _perm: crate::mm::MapPermission) -> isize{
+    let task = take_current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    
+    let res = & mut inner.memory_set;
+    
+    if (*res).check_overlap(_start.into(), _end.into()){
+        //TODO: 太丑陋了哥
+        drop(inner);
+        processor::return_current_task(task);
+        println!("[current_add_map : [{:#x}, {:#x}) ] has overlap!", _start, _end);
+        return -1;
+    }
+    
+    (*res).insert_framed_area(_start.into(), _end.into(), _perm);
+    drop(inner);
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+    0
+}
+    
+/// remove WHOLE AreaSegment which contain the range. _start should be aligned, success return 0 else -1
+pub fn current_remove_map(_start: usize, _end: usize) -> isize{
+    let task = take_current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    
+    let res = & mut inner.memory_set;
+    
+    if (*res).remove_map(_start.into(), _end.into()) {
+        //TODO: 太丑陋了哥
+        drop(inner);
+        processor::return_current_task(task);
+        return 0;
+    }
+    drop(inner);
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+    -1
+}
+//CH4 ADDED
+
+//CH5 ADDED: stride
+///
+pub fn set_priority(_prio: isize) -> isize{
+    let task = take_current_task().unwrap();
+
+    let pass_val = self::task::BIG_STRIDE / _prio as usize;
+
+    let mut pass = task.pass.exclusive_access();
+
+    *pass = pass_val;
+
+    drop(pass);
+
+    //TODO: 太丑陋了哥
+    processor::return_current_task(task);
+    _prio
+}
+
+// ///
+// pub fn update_stride(){
+//     let task = take_current_task().unwrap();
+
+//     let prio = task.priority.exclusive_access();
+//     let mut stride = task.stride.exclusive_access();
+
+//     *stride +=  self::task::BIG_STRIDE / *prio;
+
+//     drop(prio);
+//     drop(stride);
+
+//     //TODO: 太丑陋了哥
+//     processor::return_current_task(task);
+// }
+//CH5 ADDED: stride
