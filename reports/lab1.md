@@ -47,7 +47,6 @@ sbi版本：``RustSBI version 0.3.0-alpha.2, adapting to RISC-V SBI v1.0.0``
 
 
 
-
 ## 三、感受与建议
 
 2023A参加过，classroom的说明更新了，that's gooooooood
@@ -55,9 +54,6 @@ sbi版本：``RustSBI version 0.3.0-alpha.2, adapting to RISC-V SBI v1.0.0``
 测试框架也不会每次运行都卸载重装一波rust的环境了，that's pretty gooooooood
 
 不过还是会改动Makefile和build.rs，如果这个能解决将是绝杀。
-
-
-
 
 
 
