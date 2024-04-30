@@ -109,3 +109,10 @@ pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
         __switch(switched_task_cx_ptr, idle_task_cx_ptr);
     }
 }
+
+
+//CH4 ADDED
+/// give back the task to current
+pub fn return_current_task(task: Arc<TaskControlBlock>) {
+    PROCESSOR.exclusive_access().return_current(task)
+}
