@@ -47,50 +47,13 @@ sbi版本：``RustSBI version 0.3.0-alpha.2, adapting to RISC-V SBI v1.0.0``
 
 
 
-
 ## 三、感受与建议
 
-### 1.蜜汁文档
+2023A参加过，classroom的说明更新了，that's gooooooood
 
-当发现有《Tutorial-Guide》和《Tutorial-Book》时，第一反应还是困惑：我应该看哪个？还是都看？
-（做过一些课程的lab，但是有两套手册的我还是第一次见
-尤其是发现它们之间并非严格的包含关系时————《Tutorial-Book》中的操作并不一定在Lab中成立
+测试框架也不会每次运行都卸载重装一波rust的环境了，that's pretty gooooooood
 
-例如，https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter2/0intro.html 中写到通过
-```bash
-git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
-```
-获取框架代码，然而Lab的Classroom仓库并不与其一致，此时若``cd os && make run``是必然报错的：Classroom仓库并没有``user``
-事实上这部分内容在《Tutorial-Guide》https://learningos.cn/rCore-Tutorial-Guide-2023A/chapter2/0intro.html 中明确表示了要手动clone。
-
-《Tutorial-Book》有更详细的内容，是大多数新手会选择详看的部分；但你却不太能照着《Tutorial-Book》实操，否则会遇到上面的问题————除非专门准备一套《Tutorial-Book》的仓库。而要完成Lab时，似乎应该紧盯《Tutorial-Guide》。
-
-当然，由于我听课不多，不清楚课堂上是否给出了如何使用两本手册的指导，比如理解知识以《Tutorial-Book》为主，实践要看《Tutorial-Guide》之类的；在没有其他信息的情况下，如何正确使用手册还是让新手的我感到有些困惑。
-
-### 2.测试框架
-
-我怀疑ci-user这套测评系统是否太有“侵略性”了？
-首先，默认的test目标会直接卸载重装一波rust的环境：
-```makefile
-env:
-	rustup uninstall nightly && rustup install nightly
-	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add riscv64gc-unknown-none-elf
-	cargo install cargo-binutils
-	rustup component add rust-src
-	rustup component add llvm-tools-preview
-
-test: env randomize
-```
-我想没有必要每次测试都重整一遍吧……
-
-其次它会直接覆盖Makefile等文件，干扰原先的使用。
-
-所以难道说它并不是给用户使用的？如果是这样那为什么要将其使用方法要放在仓库的readme里呢
-（rustling的classroom仓库README似乎也有类似问题，即尽管readme里写了使用方法但用户其实不可以按照那个来，需要把官方手册提到的仓库换成自己的classroom仓库。可能除非classroom能针对不同用户生成不同内容，不然这个也不太好搞）
-
-
-
-
+不过还是会改动Makefile和build.rs，如果这个能解决将是绝杀。
 
 
 
