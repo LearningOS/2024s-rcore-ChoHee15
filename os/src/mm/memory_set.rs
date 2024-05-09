@@ -318,6 +318,34 @@ impl MemorySet {
             false
         }
     }
+
+    //CH4 ADDED
+    /// return true when there is a overlap
+    pub fn check_overlap(&self, start: VirtAddr, end: VirtAddr) -> bool {
+        for area in self.areas.iter(){
+            if area.check_overlap(start, end) == true {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// remove WHOLE Area segment which contain the range 
+    pub fn remove_map(&mut self, start: VirtAddr, end: VirtAddr) -> bool{
+        // for area in self.areas.iter_mut(){
+        //     if area.check_fit(start, end) {
+        //         area.unmap(&mut self.page_table);
+        //         return true;
+        //     }
+        // }
+        if let Some(idx) = self.areas.iter().position(|item| item.check_fit(start, end)){
+            let mut area = self.areas.remove(idx);
+            area.unmap(&mut self.page_table);
+            return true;
+        }
+        false
+    }
+    //CH4 ADDED
 }
 /// map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {
@@ -418,6 +446,35 @@ impl MapArea {
             current_vpn.step();
         }
     }
+
+    //CH4 ADDED
+    /// return true when there is a overlap
+    pub fn check_overlap(&self, start: VirtAddr, end: VirtAddr) -> bool {
+        let start_vpn: VirtPageNum = start.floor();
+        let end_vpn: VirtPageNum = end.ceil();
+        let l = self.vpn_range.get_start();
+        let r = self.vpn_range.get_end();
+        // println!("start_vpn: {:#x}, end_vpn: {:#x}", Into::<usize>::into(start_vpn), Into::<usize>::into(end_vpn));
+        // println!("l: {:#x}, r: {:#x}", Into::<usize>::into(l), Into::<usize>::into(r));
+        if end_vpn > l && start_vpn < r {
+            
+            return true;
+        }
+        false
+    }
+
+    pub fn check_fit(&self, start: VirtAddr, end: VirtAddr) -> bool{
+        let start_vpn: VirtPageNum = start.floor();
+        let end_vpn: VirtPageNum = end.ceil();
+        let l = self.vpn_range.get_start();
+        let r = self.vpn_range.get_end();
+        if start_vpn >= l && end_vpn <= r {
+            // println!("[check_fit] found fit");
+            return true;
+        }
+        false
+    }
+    //CH4 ADDED
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]

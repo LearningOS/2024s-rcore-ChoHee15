@@ -11,6 +11,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefMut;
 
+//CH5 ADDED: stride
+pub const BIG_STRIDE:usize = 1024;
+//CH5 ADDED: stride
+
 /// Task control block structure
 ///
 /// Directly save the contents that will not change during running
@@ -24,6 +28,14 @@ pub struct TaskControlBlock {
 
     /// Mutable
     inner: UPSafeCell<TaskControlBlockInner>,
+
+    //CH4 ADDED: stride
+    /// stride
+    pub stride: UPSafeCell<usize>,
+
+    /// pass
+    pub pass: UPSafeCell<usize>,
+    //CH4 ADDED: stride
 }
 
 impl TaskControlBlock {
@@ -36,6 +48,17 @@ impl TaskControlBlock {
         let inner = self.inner_exclusive_access();
         inner.memory_set.token()
     }
+
+    //CH5 ADDED: stride
+    ///
+    pub fn update_stride(&self) {
+        let mut stride = self.stride.exclusive_access();
+        let pass = self.pass.exclusive_access();
+        *stride += *pass;
+        drop(stride);
+        drop(pass);
+    }
+    //CH5 ADDED: stride
 }
 
 pub struct TaskControlBlockInner {
@@ -51,6 +74,12 @@ pub struct TaskControlBlockInner {
 
     /// Maintain the execution status of the current process
     pub task_status: TaskStatus,
+
+    //CH3 ADDED
+    /// ms
+    pub start_time: usize,
+    /// count
+    pub syscall_times: [u32; crate::config::MAX_SYSCALL_NUM], //TODO: too much space
 
     /// Application address space
     pub memory_set: MemorySet,
@@ -74,9 +103,11 @@ pub struct TaskControlBlockInner {
 }
 
 impl TaskControlBlockInner {
+    /// get the trap context
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
+    /// get the user token
     pub fn get_user_token(&self) -> usize {
         self.memory_set.token()
     }
@@ -135,8 +166,16 @@ impl TaskControlBlock {
                     ],
                     heap_bottom: user_sp,
                     program_brk: user_sp,
+                    //CH3 ADDED: task_info
+                    start_time: 0,
+                    syscall_times: [0; crate::config::MAX_SYSCALL_NUM],
+                    //CH3 ADDED: task_info
                 })
             },
+            //CH5 ADDED: stride
+            stride: unsafe{UPSafeCell::new(0)},
+            pass: unsafe{UPSafeCell::new(16)},
+            //CH5 ADDED: stride
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
@@ -216,8 +255,17 @@ impl TaskControlBlock {
                     fd_table: new_fd_table,
                     heap_bottom: parent_inner.heap_bottom,
                     program_brk: parent_inner.program_brk,
+                    //CH3 ADDED: task_info
+                    //TODO: should copy form parent or just 0?
+                    start_time: parent_inner.start_time,
+                    syscall_times: parent_inner.syscall_times.clone(),
+                    //CH3 ADDED: task_info
                 })
             },
+            //CH5 ADDED: stride
+            stride: unsafe{UPSafeCell::new(*self.stride.exclusive_access())},
+            pass: unsafe{UPSafeCell::new(*self.pass.exclusive_access())},
+            //CH5 ADDED: stride
         });
         // add child
         parent_inner.children.push(task_control_block.clone());
@@ -261,6 +309,19 @@ impl TaskControlBlock {
             None
         }
     }
+
+    //CH4 ADDED: spwan
+    /// parent process fork the child process
+    pub fn spawn(self: &Arc<Self>, _data: &[u8]) -> Arc<Self> {
+        let task_control_block = Arc::new(TaskControlBlock::new(_data));
+
+        task_control_block.inner_exclusive_access().parent = Some(Arc::downgrade(self));
+
+        self.inner_exclusive_access().children.push(task_control_block.clone());
+
+        task_control_block
+    }
+    //CH4 ADDED: spwan
 }
 
 #[derive(Copy, Clone, PartialEq)]
