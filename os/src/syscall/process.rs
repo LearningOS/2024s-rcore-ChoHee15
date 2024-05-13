@@ -213,16 +213,42 @@ pub fn sys_spawn(_path: *const u8) -> isize {
     let path = translated_str(token, _path);
 
     // let ppid = current_task().unwrap().getpid();
-    if let Some(data) = get_app_data_by_name(path.as_str()) {
+    // if let Some(data) = get_app_data_by_name(path.as_str()) {
 
-        let task = current_task.spawn(data);
+    //     let task = current_task.spawn(data);
+    //     let pid = task.pid.0;
+    //     add_task(task);
+    //     pid as isize
+    // } else {
+    //     -1
+    // }
+    //CH4 ADDED: spawn
+
+    // CH5 MODIFIED
+    // let ppid = current_task.getpid();
+    if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
+        let all_data = app_inode.read_all();
+        let task = current_task.spawn(all_data.as_slice());
         let pid = task.pid.0;
         add_task(task);
         pid as isize
     } else {
         -1
     }
-    //CH4 ADDED: spawn
+    // CH5 MODIFIED
+
+
+    // trace!("kernel:pid[{}] sys_exec", current_task().unwrap().pid.0);
+    // let token = current_user_token();
+    // let path = translated_str(token, path);
+    // if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
+    //     let all_data = app_inode.read_all();
+    //     let task = current_task().unwrap();
+    //     task.exec(all_data.as_slice());
+    //     0
+    // } else {
+    //     -1
+    // }
 }
 
 // YOUR JOB: Set task priority.

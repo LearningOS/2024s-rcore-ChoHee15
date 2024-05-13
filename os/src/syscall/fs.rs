@@ -1,6 +1,6 @@
 //! File and filesystem-related syscalls
-use crate::fs::{open_file, OpenFlags, Stat};
-use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
+use crate::fs::{open_file, OpenFlags, Stat, linkat, unlink};
+use crate::mm::{translated_byte_buffer, translated_refmut, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
@@ -77,27 +77,85 @@ pub fn sys_close(fd: usize) -> isize {
 
 /// YOUR JOB: Implement fstat.
 pub fn sys_fstat(_fd: usize, _st: *mut Stat) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_fstat NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
-    );
-    -1
+    // trace!(
+    //     "kernel:pid[{}] sys_fstat NOT IMPLEMENTED",
+    //     current_task().unwrap().pid.0
+    // );
+    // -1
+
+
+    // CH6 ADDED
+    trace!("kernel:pid[{}] sys_close", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+
+    if inner.fd_table[_fd].is_none(){
+        return -1
+    }
+
+    // let a = inner.fd_table[_fd].unwrap();
+
+    if let Some(file) = &inner.fd_table[_fd] {
+        let file = file.clone();
+
+        let res = file.state();
+
+        // if !file.readable() {
+        //     return -1;
+        // }
+        // // release current task TCB manually to avoid multi-borrow
+        // drop(inner);
+        // trace!("kernel: sys_read .. file.read");
+        // file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+        let p = translated_refmut(token, _st);
+        *p = res;
+        0
+    } else {
+        -1
+    }
+    // CH6 ADDED
+
 }
 
 /// YOUR JOB: Implement linkat.
 pub fn sys_linkat(_old_name: *const u8, _new_name: *const u8) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_linkat NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
-    );
-    -1
+    // trace!(
+    //     "kernel:pid[{}] sys_linkat NOT IMPLEMENTED",
+    //     current_task().unwrap().pid.0
+    // );
+    // -1
+
+    // CH6 ADDED
+    trace!("kernel:pid[{}] sys_linkat", current_task().unwrap().pid.0);
+    
+    let token = current_user_token();
+    let old_path = translated_str(token, _old_name);
+    let new_path = translated_str(token, _new_name);
+
+    linkat(&old_path, &new_path)
+
+    // CH6 ADDED
 }
 
 /// YOUR JOB: Implement unlinkat.
 pub fn sys_unlinkat(_name: *const u8) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_unlinkat NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
-    );
-    -1
+    // trace!(
+    //     "kernel:pid[{}] sys_unlinkat NOT IMPLEMENTED",
+    //     current_task().unwrap().pid.0
+    // );
+    // -1
+
+    // CH6 ADDED
+    trace!("kernel:pid[{}] sys_linkat", current_task().unwrap().pid.0);
+    
+    let token = current_user_token();
+    let name = translated_str(token, _name);
+
+    unlink(&name)
+
+    // if token == 0 {unlink(&name);};
+    // -1
+
+    // CH6 ADDED
 }

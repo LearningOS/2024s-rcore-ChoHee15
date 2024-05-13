@@ -39,6 +39,17 @@ impl File for Stdin {
     fn write(&self, _user_buf: UserBuffer) -> usize {
         panic!("Cannot write to stdin!");
     }
+    // CH6 ADDED
+    fn state(&self) -> super::Stat {
+        super::Stat { 
+            dev: 0, 
+            ino: u64::MAX, 
+            mode: super::StatMode::NULL, 
+            nlink: 0, 
+            pad: [0; 7], 
+        }
+    }
+    // CH6 ADDED
 }
 
 impl File for Stdout {
@@ -57,4 +68,15 @@ impl File for Stdout {
         }
         user_buf.len()
     }
+    // CH6 ADDED
+    fn state(&self) -> super::Stat {
+        super::Stat { 
+            dev: 0, 
+            ino: u64::MAX, 
+            mode: super::StatMode::NULL, 
+            nlink: 0, 
+            pad: [0; 7], 
+        }
+    }
+    // CH6 ADDED
 }
