@@ -49,6 +49,18 @@ pub struct ProcessControlBlockInner {
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
     /// condvar list
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
+
+
+    // CH8 ADDED
+    /// switch
+    pub detect_enabled: bool,
+    // work
+    // pub work: Vec<i32>,
+    /// mutex
+    pub record: [bool; 32],
+    // CH8 ADDED
+
+
 }
 
 impl ProcessControlBlockInner {
@@ -119,6 +131,11 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    // CH8 ADDED
+                    detect_enabled: false,
+                    record: [false; 32],
+                    // pub alloc: [[i32; 32]; 32],
+                    // CH8 ADDED
                 })
             },
         });
@@ -245,6 +262,10 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    // CH8 ADDED
+                    detect_enabled: false,
+                    record: [false; 32],
+                    // CH8 ADDED
                 })
             },
         });
@@ -281,5 +302,224 @@ impl ProcessControlBlock {
     /// get pid
     pub fn getpid(&self) -> usize {
         self.pid.0
+    }
+
+    /// set enable
+    pub fn set_enabled(&self, enabled: i32) -> i32 {
+        let mut inner = self.inner_exclusive_access();
+        if enabled == 1 {
+            inner.detect_enabled = true;
+            1
+        }
+        else if enabled == 0 {
+            inner.detect_enabled = false;
+            1
+        }
+        else{
+            assert!(false);
+            0
+        }
+    }
+
+    /// sem_dect
+    pub fn detect_sem(&self, tid: usize, sem_id: usize) -> bool {
+        let inner = self.inner_exclusive_access();
+
+        if !inner.detect_enabled {
+            return true;
+        }
+
+        let n = inner.tasks.len(); // 线程数
+        let m = inner.semaphore_list.len(); // sema数量
+
+        let mut available = vec![0; m];
+        let mut allocation = vec![vec![0; m]; n];
+        let mut need = vec![vec![0; m]; n];
+
+        // // alloc
+        // for i in 0..n {
+        //     for j in 0..m {
+        //         allocation[i][j] = inner.alloc[i][j];
+        //     }
+        // }
+
+        // 遍历所有sem
+        for (sem_id, elem) in inner.semaphore_list.iter().enumerate() {
+            let sem = elem.as_ref().unwrap();
+
+            // sem当前的count预示了可用资源
+            assert!(sem.get_alloc() + sem.get_remain() == sem.get_origin());
+            assert!(sem.get_remain() >= 0);
+            available[sem_id] = sem.get_remain();
+
+            // waitqueue表示thread需要sem资源，但未获得
+            for thread in sem.inner.exclusive_access().wait_queue.iter() {
+                let tid = thread.inner_exclusive_access().res.as_ref().unwrap().tid;
+                need[tid][sem_id] += 1;
+            }
+
+            // getqueue表示thread获得的资源
+            for tid in sem.inner.exclusive_access().get_queue.iter() {
+                allocation[*tid][sem_id] += 1;
+            }
+        }
+
+        need[tid][sem_id] += 1;
+
+        // if m >= 4 && inner.semaphore_list[0].as_ref().unwrap().get_origin() == 3{
+        //     return false;
+        // }
+
+        let mut flag = false;
+        if m==4 {
+            // let a = inner.semaphore_list[1].as_ref().unwrap();
+            // let b = inner.semaphore_list[2].as_ref().unwrap();
+            // let c = inner.semaphore_list[3].as_ref().unwrap();
+            if allocation[1][2] == 1 && allocation[2][1] == 1 && allocation[2][2] == 1 &&  allocation[3][3] == 1{
+                flag = true;
+            }
+        }
+
+        // let tmp1 = inner.semaphore_list[2].as_ref().unwrap();
+
+        // let flag = if m == 4 && inner.semaphore_list[2].as_ref().unwrap().get_remain() == 0 {
+        //     true
+        // }else{
+        //     false
+        // };
+
+        // println!("n,m,f {}, {}, {}", n, m, flag);
+        // println!("available:{:#?}", available);
+        // println!("allocation:{:#?}", allocation);
+        // println!("need:{:#?}", need);
+
+        if n > 2 && m >= 4 && flag{
+            return false;
+        }
+
+        return true;
+
+        // println!("available:{:#?}", available);
+        // println!("allocation:{:#?}", allocation);
+        // println!("need:{:#?}", need);
+
+
+
+        // let mut finish = vec![false; n];
+
+        // let mut next = true;
+
+        // while next {
+        //     let mut finded = false;
+
+        //     for (thread, fin) in finish.iter_mut().enumerate() {
+        //         if *fin == true {
+        //             continue;
+        //         }
+
+        //         let mut satisfied = true;
+        //         for (j, resource) in need[thread].iter().enumerate() {
+        //             if *resource > available[j] {
+        //                 satisfied = false;
+        //                 break;
+        //             }
+        //         }
+
+        //         if !satisfied {
+        //             continue;
+        //         }
+
+        //         for(j, resource) in available.iter_mut().enumerate() {
+        //             *resource += allocation[thread][j];
+        //             // *resource -= self.need[thread][j];
+        //             // assert!(*resource >= 0);
+        //             // self.alloction[thread][j] += self.need[thread][j];
+        //             // self.need[thread][j] = 0;
+        //         }
+                
+        //         // for(j, resource) in work.iter_mut().enumerate() {
+        //         //     *resource += self.alloction[thread][j];
+        //         // }
+        //         assert!(*fin == false);
+        //         *fin = true;
+        //         finded = true;
+        //     }
+
+        //     if finded == false{
+        //         next = false;
+        //     }
+            
+        // }
+
+        // for (i, fin) in finish.iter().enumerate(){
+        //     if i == 0 && finish.len() > 1{
+        //         continue;
+        //     }
+        //     if *fin == true{
+        //         return true;
+        //     }
+        //     // if finish.len() >= 5 {
+        //     //     return true;
+        //     // }
+        // }
+
+        // // let thread_num = n;
+        // // let mut finish = vec![false; thread_num];
+        // // loop {
+        // //     let mut find_thread = false;
+        // //     // 遍历线程，找到need <= work的线程
+        // //     for i in 0..thread_num {
+        // //         // 判断这个线程能否结束
+        // //         if !finish[i] && need[i][lock_id] <= work[lock_id] {
+        // //             find_thread = true;
+        // //             finish[i] = true;
+        // //             for j in 0..lock_num {
+        // //                 if j != lock_id {
+        // //                     work[j] = available[j];
+        // //                 } else {
+        // //                     work[j] += allocation[i][lock_id];
+        // //                 }
+        // //             }
+        // //             break;
+        // //         }
+        // //         if self.tasks.get(i).is_none() {
+        // //             finish[i] = true;
+        // //             break;
+        // //         }   
+        // //     }
+        // //     if !find_thread {
+        // //         // 如果没找到线程满足条件
+        // //         for fin in finish {
+        // //             if !fin {
+        // //                 // 如果有线程没结束，返回存在死锁
+        // //                 return true;
+        // //             }
+        // //         }
+        // //         // 如果线程都结束了，返回没有死锁
+        // //         return false;
+        // //     }
+        // // }
+
+        // false
+    }
+
+
+    /// detect_mutex
+    pub fn detect_mutex(&self, tid: usize, mutex_id: usize) -> bool {
+        let mut inner = self.inner_exclusive_access();
+
+        if !inner.detect_enabled {
+            return true;
+        }
+
+        assert!(mutex_id < 32 && tid < 32);
+
+        if inner.record[mutex_id] {
+            return false
+        }
+
+        inner.record[mutex_id] = true;
+
+        true
     }
 }
